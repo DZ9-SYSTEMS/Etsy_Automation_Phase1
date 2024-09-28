@@ -98,8 +98,13 @@ def delete_all_data():
             return f"Error deleting data: {e}"
 
 
-# Function to generate images using OpenAI's DALL-E 3
-def generate_images(prompt, num_images, model, size='1024x1024'):
+# Function to initialize the OpenAI client
+def initialize_client(api_key):
+    return openai.Client(api_key=api_key)
+
+# Function to generate images using OpenAI's DALL-E
+def generate_images(prompt, num_images, model, api_key,size='1024x1024'):
+    client = initialize_client(api_key)  # Initialize client with the provided API key
     try:
         response = client.images.generate(
             model=model,

@@ -50,13 +50,13 @@ def main_page():
     dpi_level = st.number_input("Set DPI level", min_value=72, max_value=600, value=300, step=10)
 
     # Select box for DALL-E model selection
-    dall_e_models = ["dall-e-1", "dall-e-2", "dall-e-3"]  # Replace with actual model names
+    dall_e_models = ["dall-e-2", "dall-e-3"]  # Replace with actual model names
     selected_model = st.selectbox("Select DALL-E Model", dall_e_models)
 
     if st.button("Generate Design"):
         if prompt:
-            # Generate images from DALL-E
-            images = generate_images(prompt, num_images, model=selected_model)
+            # Generate images from DALL-E using the stored API key
+            images = generate_images(prompt, num_images, selected_model, saved_api_key)
 
             if images:
                 st.write(f"Generated {len(images)} images.")
@@ -78,6 +78,7 @@ def main_page():
                 st.error("Failed to generate images")
         else:
             st.warning("Please enter a prompt")
+
 
 # Main Streamlit Application Logic
 def main():
