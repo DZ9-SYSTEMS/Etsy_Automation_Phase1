@@ -9,16 +9,16 @@ from dotenv import load_dotenv
 import streamlit as st
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv()
 
 # Initialize the OpenAI client
-client = openai.Client(api_key=os.getenv('OPENAI_API_KEY'))
+# client = openai.Client(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv()
 
 # Initialize the OpenAI client
-openai.api_key = os.getenv('OPENAI_API_KEY')  # Use the correct initialization for the OpenAI client
+# openai.api_key = os.getenv('OPENAI_API_KEY')  # Use the correct initialization for the OpenAI client
 
 # Function to connect to the SQLite database
 def get_db_connection():
