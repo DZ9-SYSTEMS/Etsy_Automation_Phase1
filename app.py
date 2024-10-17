@@ -1,88 +1,120 @@
 import streamlit as st
-from helper import generate_images, set_image_dpi, insert_api_key, get_api_key, create_api_key_table, delete_all_data
+from helper import (
+    insert_api_key,
+    get_api_key,
+    create_tables,
+    delete_all_data,
+    insert_channel_user_credentials,
+    get_channel_user_credentials,
+    display_instructions,
+    download_image
+)
+from midjourney_sdk_py import Midjourney
+from dotenv import load_dotenv
 import os
 
-# Initialize the database and API key table
-create_api_key_table()
+# Load environment variables from .env file (optional)
+load_dotenv()
+
+# Initialize the database and tables
+create_tables()  # This creates both the API key and channel user credential tables
 
 # Set the page configuration with a custom tab title and favicon
-st.set_page_config(page_title="DALL-E Design & DPI Converter", page_icon="assets/etsy.png")
+st.set_page_config(page_title="MidJourney Image Generator", page_icon="assets/midjourney.png")
 
-# Sidebar for API Key Input
+# Sidebar for API Key and User Token Input
 def sidebar():
-    st.sidebar.image("assets/dall-e.png", width=250)
-    st.sidebar.subheader("API Key Setup")
+    st.sidebar.image("assets/midjourney.png", width=250)
+    st.sidebar.subheader("API Key & MidJourney Setup")
 
-    # Retrieve existing API key from the database or session state
-    if 'api_key' not in st.session_state:
-        st.session_state.api_key = get_api_key()
+    # Check if credentials already exist
+    credentials = get_channel_user_credentials()
 
-    # Input field for the API key
-    api_key_input = st.sidebar.text_input("Enter your OpenAI API Key", value=st.session_state.api_key, type="password")
+    if credentials:
+        # Load existing credentials into session state
+        discord_channel_id, discord_user_token = credentials
+        st.session_state.discord_channel_id = discord_channel_id
+        st.session_state.discord_user_token = discord_user_token
+        st.sidebar.success("Credentials loaded successfully!")
+    else:
+        # Input fields for Discord Channel ID and User Token
+        discord_channel_id = st.sidebar.text_input("Enter Discord Channel ID", value="")
+        discord_user_token = st.sidebar.text_input("Enter Discord User Token", value="", type="password")
 
-    if st.sidebar.button("Save API Key"):
-        if api_key_input:
-            insert_api_key(api_key_input)
-            st.session_state.api_key = api_key_input  # Update session state
-            st.sidebar.success("API Key saved successfully!")
-        else:
-            st.sidebar.error("Please enter a valid API key")
+        # Check if the required inputs are provided
+        if st.sidebar.button("Save Credentials"):
+            if discord_channel_id and discord_user_token:
+                # Save to session state and database
+                insert_channel_user_credentials(discord_channel_id, discord_user_token)
+                st.session_state.discord_channel_id = discord_channel_id
+                st.session_state.discord_user_token = discord_user_token
+                st.sidebar.success("Credentials saved successfully!")
+            else:
+                st.sidebar.error("Please enter both Channel ID and User Token")
 
     # Delete all data button
     if st.sidebar.button("Delete All Data"):
         delete_all_data()  # Call the function to delete all data
-        result_message = delete_all_data()  # Call the function to delete all data
-        st.sidebar.success(result_message)
+        st.sidebar.success("All data deleted successfully!")
+
+
 
 # Main application page
 def main_page():
-    st.title("DALL-E Design Generator and DPI Converter")
+    st.title("MidJourney Image Generator")
 
-    # Check if API key is present in the session state
-    saved_api_key = st.session_state.get('api_key', None)
+    # Check if API key and credentials are present in the session state
+    discord_channel_id = st.session_state.get('discord_channel_id', None)
+    discord_user_token = st.session_state.get('discord_user_token', None)
 
-    if not saved_api_key:
-        st.success("Please enter your API key in the sidebar before using the app. You can get an API key from OpenAI here: https://platform.openai.com/api-keys")
+    # If credentials are not set, show instructions
+    if not discord_channel_id or not discord_user_token:
+        st.error("Please enter your Discord Channel ID and User Token in the sidebar before using the app.")
+        display_instructions()
+        return
+
+    # Initialize the Midjourney SDK with user credentials
+    midjourney = Midjourney(discord_channel_id, discord_user_token)
 
     # User inputs for generating images
-    prompt = st.text_input("Enter a design prompt for DALL-E")
+    prompt = st.text_input("Enter a design prompt for MidJourney")
     num_images = st.number_input("Number of images to generate", min_value=1, max_value=10, value=1, step=1)
-    dpi_level = st.number_input("Set DPI level", min_value=72, max_value=600, value=300, step=10)
-
-    # Select box for DALL-E model selection
-    dall_e_models = ["dall-e-2", "dall-e-3"]  # Replace with actual model names
-    selected_model = st.selectbox("Select DALL-E Model", dall_e_models)
 
     if st.button("Generate Design"):
         if prompt:
-            # Generate images from DALL-E using the stored API key
-            images = generate_images(prompt, num_images, selected_model, saved_api_key)
+            options = {
+                "ar": "3:2",  # Aspect ratio
+                "v": "6.0",   # Version
+            }
 
-            if images:
-                st.write(f"Generated {len(images)} images.")
+            # Generate images from MidJourney
+            for idx in range(num_images):
+                message = midjourney.generate(prompt, options)
+                image_url = message['upscaled_photo_url']
 
-                for idx, image in enumerate(images):
-                    st.image(image, caption=f"Generated Design {idx + 1}")
+                # Define a local save path for the image
+                save_path = f"generated_image_{idx + 1}.png"
 
-                    # Convert image to custom DPI
-                    formatted_image_path = set_image_dpi(image, dpi_level)
-                    st.success(f"Image {idx + 1} formatted to {dpi_level} DPI!")
+                # Download the image using the helper function
+                if download_image(image_url, save_path):
+                    # Display the downloaded image in the app
+                    st.image(save_path, caption=f"Generated Image {idx + 1}")
 
                     # Allow user to download the image
-                    st.download_button(
-                        f"Download Image {idx + 1} at {dpi_level} DPI",
-                        data=open(formatted_image_path, 'rb').read(),
-                        file_name=f"design_{idx + 1}_{dpi_level}dpi.jpg"
-                    )
-            else:
-                st.error("Failed to generate images")
+                    with open(save_path, 'rb') as img_file:
+                        st.download_button(
+                            f"Download Image {idx + 1}",
+                            data=img_file,
+                            file_name=f"design_{idx + 1}.png"
+                        )
+                else:
+                    st.error(f"Failed to download Image {idx + 1}")
         else:
             st.warning("Please enter a prompt")
 
-
 # Main Streamlit Application Logic
 def main():
-    sidebar()  # Display the sidebar for API key input
+    sidebar()  # Display the sidebar for API key and credentials input
     main_page()  # Display the main page for generating images
 
 if __name__ == "__main__":

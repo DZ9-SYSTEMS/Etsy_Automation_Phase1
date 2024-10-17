@@ -3,3 +3,4 @@ requests
 Pillow
 openai
 python-dotenv
+midjourney-sdk-py

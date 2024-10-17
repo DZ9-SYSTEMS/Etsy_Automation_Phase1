@@ -13,13 +13,23 @@ pip install -r requirements.txt
 streamlit run app.py
 
 
-# sqlite commands
+### SQ Lite Commands
+
+1. Open a Database:
+
 sqlite3 settings.db
 
-# check for api
-SELECT * FROM api_keys;
+2. Create a New Database:
 
+sqlite3 new_database.db
 
-# check for images
-SELECT FROM images;
+3. List All Databases:
 
+.databases
+
+4. Show All Tables:
+
+.tables
+
+5. Select Data from a Table:
+SELECT * FROM channel_info;
